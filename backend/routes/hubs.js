@@ -1,242 +1,247 @@
-import express from 'express';
-import Device from '../models/Device.js';
-import Hub from '../models/Hub.js';
-import ActivityLog from '../models/ActivityLog.js';
+import express from "express"
+import Hub from "../models/Hub.js"
+import ActivityLog from "../models/ActivityLog.js"
+import { authMiddleware } from "../middleware/auth.js"
 
-const router = express.Router();
+const router = express.Router()
 
-// Get all devices
-router.get('/', async (req, res) => {
+// Get all hubs
+router.get("/", authMiddleware, async (req, res) => {
   try {
-    const devices = await Device.find().populate('hub', 'name type');
-    res.json(devices);
+    const hubs = await Hub.find()
+    res.json(hubs)
   } catch (error) {
-    console.error('Get devices error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Get hubs error:", error)
+    res.status(500).json({ message: "Server error" })
   }
-});
+})
 
-// Get device by ID
-router.get('/:id', async (req, res) => {
+// Get hub by ID
+router.get("/:id", authMiddleware, async (req, res) => {
   try {
-    const device = await Device.findById(req.params.id).populate('hub', 'name type');
-    if (!device) {
-      return res.status(404).json({ message: 'Device not found' });
+    const hub = await Hub.findById(req.params.id)
+    if (!hub) {
+      return res.status(404).json({ message: "Hub not found" })
     }
-    
+
     // Log activity
     await ActivityLog.create({
       user: req.user.id,
-      action: 'view_device',
-      target: 'device',
-      targetId: device._id,
-      details: { 
-        deviceName: device.name,
-        deviceType: device.type
+      action: "view_hub",
+      target: "hub",
+      targetId: hub._id,
+      details: {
+        hubName: hub.name,
+        hubType: hub.type,
       },
       ipAddress: req.ip,
-      userAgent: req.headers['user-agent']
-    });
-    
-    res.json(device);
-  } catch (error) {
-    console.error('Get device error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+      userAgent: req.headers["user-agent"],
+    })
 
-// Create device (admin, team_lead, supervisor only)
-router.post('/', async (req, res) => {
+    res.json(hub)
+  } catch (error) {
+    console.error("Get hub error:", error)
+    res.status(500).json({ message: "Server error" })
+  }
+})
+
+// Create hub (admin, team_lead only)
+router.post("/", authMiddleware, async (req, res) => {
   try {
     // Check permissions
-    if (!['admin', 'team_lead', 'supervisor'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Not authorized' });
+    if (!["admin", "team_lead"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Not authorized" })
     }
-    
-    const { name, type, model, serialNumber, hub, ipAddress, macAddress, firmware } = req.body;
-    
-    // Check if hub exists
-    const hubExists = await Hub.findById(hub);
-    if (!hubExists) {
-      return res.status(404).json({ message: 'Hub not found' });
-    }
-    
-    // Create device
-    const newDevice = new Device({
+
+    const { name, type, ipAddress, macAddress, location, customer } = req.body
+
+    // Create hub
+    const newHub = new Hub({
       name,
       type,
-      model,
-      serialNumber,
-      hub,
       ipAddress,
       macAddress,
-      firmware
-    });
-    
-    await newDevice.save();
-    
+      location,
+      customer,
+      status: "offline", // Default status
+    })
+
+    await newHub.save()
+
     // Log activity
     await ActivityLog.create({
       user: req.user.id,
-      action: 'create_device',
-      target: 'device',
-      targetId: newDevice._id,
-      details: { 
-        deviceName: newDevice.name,
-        deviceType: newDevice.type,
-        hubId: hubExists._id,
-        hubName: hubExists.name
+      action: "create_hub",
+      target: "hub",
+      targetId: newHub._id,
+      details: {
+        hubName: newHub.name,
+        hubType: newHub.type,
       },
       ipAddress: req.ip,
-      userAgent: req.headers['user-agent']
-    });
-    
+      userAgent: req.headers["user-agent"],
+    })
+
+    // Notify connected clients if socket.io is available
+    if (req.io) {
+      req.io.emit("hub_created", newHub)
+    }
+
     res.status(201).json({
-      message: 'Device created successfully',
-      device: newDevice
-    });
+      message: "Hub created successfully",
+      hub: newHub,
+    })
   } catch (error) {
-    console.error('Create device error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Create hub error:", error)
+    res.status(500).json({ message: "Server error" })
   }
-});
+})
 
-// Update device
-router.put('/:id', async (req, res) => {
+// Update hub (admin, team_lead only)
+router.put("/:id", authMiddleware, async (req, res) => {
   try {
     // Check permissions
-    if (!['admin', 'team_lead', 'supervisor'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Not authorized' });
+    if (!["admin", "team_lead"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Not authorized" })
     }
-    
-    const { name, type, model, serialNumber, hub, status, ipAddress, macAddress, firmware } = req.body;
-    
-    // Find device
-    const device = await Device.findById(req.params.id);
-    if (!device) {
-      return res.status(404).json({ message: 'Device not found' });
+
+    const { name, type, ipAddress, macAddress, location, status, customer } = req.body
+
+    // Find hub
+    const hub = await Hub.findById(req.params.id)
+    if (!hub) {
+      return res.status(404).json({ message: "Hub not found" })
     }
-    
-    // Check if hub exists if changing hub
-    if (hub && hub !== device.hub.toString()) {
-      const hubExists = await Hub.findById(hub);
-      if (!hubExists) {
-        return res.status(404).json({ message: 'Hub not found' });
-      }
-    }
-    
+
     // Update fields
-    if (name) device.name = name;
-    if (type) device.type = type;
-    if (model) device.model = model;
-    if (serialNumber) device.serialNumber = serialNumber;
-    if (hub) device.hub = hub;
-    if (status) device.status = status;
-    if (ipAddress) device.ipAddress = ipAddress;
-    if (macAddress) device.macAddress = macAddress;
-    if (firmware) device.firmware = firmware;
-    
-    await device.save();
-    
+    if (name) hub.name = name
+    if (type) hub.type = type
+    if (ipAddress) hub.ipAddress = ipAddress
+    if (macAddress !== undefined) hub.macAddress = macAddress
+    if (location !== undefined) hub.location = location
+    if (status) hub.status = status
+    if (customer) hub.customer = customer
+
+    await hub.save()
+
     // Log activity
     await ActivityLog.create({
       user: req.user.id,
-      action: 'update_device',
-      target: 'device',
-      targetId: device._id,
-      details: { 
-        deviceName: device.name,
-        deviceStatus: device.status
+      action: "update_hub",
+      target: "hub",
+      targetId: hub._id,
+      details: {
+        hubName: hub.name,
+        hubStatus: hub.status,
       },
       ipAddress: req.ip,
-      userAgent: req.headers['user-agent']
-    });
-    
-    res.json({
-      message: 'Device updated successfully',
-      device
-    });
-  } catch (error) {
-    console.error('Update device error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+      userAgent: req.headers["user-agent"],
+    })
 
-// Delete device (admin, team_lead only)
-router.delete('/:id', async (req, res) => {
+    // Notify connected clients if socket.io is available
+    if (req.io) {
+      req.io.emit("hub_updated", hub)
+    }
+
+    res.json({
+      message: "Hub updated successfully",
+      hub,
+    })
+  } catch (error) {
+    console.error("Update hub error:", error)
+    res.status(500).json({ message: "Server error" })
+  }
+})
+
+// Delete hub (admin, team_lead only)
+router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     // Check permissions
-    if (!['admin', 'team_lead'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Not authorized' });
+    if (!["admin", "team_lead"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Not authorized" })
     }
-    
-    // Find device
-    const device = await Device.findById(req.params.id);
-    if (!device) {
-      return res.status(404).json({ message: 'Device not found' });
+
+    // Find hub
+    const hub = await Hub.findById(req.params.id)
+    if (!hub) {
+      return res.status(404).json({ message: "Hub not found" })
     }
-    
-    // Delete device
-    await Device.deleteOne({ _id: device._id });
-    
+
+    // Delete hub
+    await Hub.deleteOne({ _id: hub._id })
+
     // Log activity
     await ActivityLog.create({
       user: req.user.id,
-      action: 'delete_device',
-      target: 'device',
-      details: { 
-        deviceName: device.name,
-        deviceId: device._id
+      action: "delete_hub",
+      target: "hub",
+      details: {
+        hubName: hub.name,
+        hubId: hub._id,
       },
       ipAddress: req.ip,
-      userAgent: req.headers['user-agent']
-    });
-    
-    res.json({ message: 'Device deleted successfully' });
-  } catch (error) {
-    console.error('Delete device error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+      userAgent: req.headers["user-agent"],
+    })
 
-// Update device status
-router.put('/:id/status', async (req, res) => {
+    // Notify connected clients if socket.io is available
+    if (req.io) {
+      req.io.emit("hub_deleted", { hubId: hub._id })
+    }
+
+    res.json({ message: "Hub deleted successfully" })
+  } catch (error) {
+    console.error("Delete hub error:", error)
+    res.status(500).json({ message: "Server error" })
+  }
+})
+
+// Update hub status
+router.put("/:id/status", authMiddleware, async (req, res) => {
   try {
-    const { status } = req.body;
-    
-    // Find device
-    const device = await Device.findById(req.params.id);
-    if (!device) {
-      return res.status(404).json({ message: 'Device not found' });
+    const { status } = req.body
+
+    // Find hub
+    const hub = await Hub.findById(req.params.id)
+    if (!hub) {
+      return res.status(404).json({ message: "Hub not found" })
     }
-    
+
     // Update status
-    device.status = status;
-    device.lastPing = new Date();
-    await device.save();
-    
+    hub.status = status
+    hub.lastPing = new Date()
+    await hub.save()
+
     // Log activity
     await ActivityLog.create({
       user: req.user.id,
-      action: 'update_device_status',
-      target: 'device',
-      targetId: device._id,
-      details: { 
-        deviceName: device.name,
-        deviceStatus: device.status
+      action: "update_hub_status",
+      target: "hub",
+      targetId: hub._id,
+      details: {
+        hubName: hub.name,
+        hubStatus: hub.status,
       },
       ipAddress: req.ip,
-      userAgent: req.headers['user-agent']
-    });
-    
-    res.json({
-      message: 'Device status updated successfully',
-      device
-    });
-  } catch (error) {
-    console.error('Update device status error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+      userAgent: req.headers["user-agent"],
+    })
 
-export default router;
+    // Notify connected clients if socket.io is available
+    if (req.io) {
+      req.io.emit("hub_status_changed", {
+        hubId: hub._id,
+        status: hub.status,
+      })
+    }
+
+    res.json({
+      message: "Hub status updated successfully",
+      hub,
+    })
+  } catch (error) {
+    console.error("Update hub status error:", error)
+    res.status(500).json({ message: "Server error" })
+  }
+})
+
+export default router
+
