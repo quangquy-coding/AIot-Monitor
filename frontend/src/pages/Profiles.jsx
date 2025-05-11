@@ -1,10 +1,10 @@
-"use client"
+
 
 import { useState, useEffect } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import api from "../utils/api"
 import toast from "react-hot-toast"
-import { BookOpen, Plus, Edit, Trash2, Search, Info } from "lucide-react"
+import { BookOpen, Plus, Edit, Trash2, Search, Info, Layers, Terminal, UserPlus, UserX } from "lucide-react"
 
 const Profiles = () => {
   const { user } = useAuth()
@@ -98,7 +98,31 @@ const Profiles = () => {
   const handleAddProfile = async (e) => {
     e.preventDefault()
 
+    // Validate form data
+    if (!formData.name) {
+      toast.error("Profile name is required")
+      return
+    }
+
+    if (!formData.deviceGroupId) {
+      toast.error("Please select a device group")
+      return
+    }
+
+    if (!formData.commandListId) {
+      toast.error("Please select a command list")
+      return
+    }
+
+    // Check if user has permission
+    if (!["admin", "team_lead"].includes(user.role)) {
+      toast.error("You don't have permission to create profiles")
+      return
+    }
+
     try {
+      toast.loading("Creating profile...")
+
       const response = await api.post("/profiles", {
         name: formData.name,
         description: formData.description,
@@ -106,13 +130,25 @@ const Profiles = () => {
         commandListId: formData.commandListId,
         operators: formData.operators,
       })
+
+      toast.dismiss()
       toast.success("Profile created successfully")
+
+      // Update profiles list with the new profile
       setProfiles([...profiles, response.data.profile])
       setShowAddModal(false)
       resetForm()
     } catch (error) {
+      toast.dismiss()
       console.error("Error creating profile:", error)
-      toast.error(error.response?.data?.message || "Failed to create profile")
+
+      if (error.response?.status === 403) {
+        toast.error("You don't have permission to create profiles")
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message)
+      } else {
+        toast.error("Failed to create profile. Please try again.")
+      }
     }
   }
 
@@ -155,31 +191,61 @@ const Profiles = () => {
 
   const handleAssignOperator = async (userId) => {
     try {
+      toast.loading(`Assigning operator to ${selectedProfile.name}...`)
+
       const response = await api.post(`/profiles/${selectedProfile._id}/operators`, {
         userId,
       })
+
+      toast.dismiss()
       toast.success("Operator assigned successfully")
 
-      // Update profiles list
+      // Update profiles list with the updated profile
       setProfiles(profiles.map((profile) => (profile._id === selectedProfile._id ? response.data.profile : profile)))
 
-      setShowAssignModal(false)
+      // Update the selected profile with the new data
+      setSelectedProfile(response.data.profile)
     } catch (error) {
+      toast.dismiss()
       console.error("Error assigning operator:", error)
-      toast.error(error.response?.data?.message || "Failed to assign operator")
+
+      if (error.response?.status === 403) {
+        toast.error("You don't have permission to assign operators")
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message)
+      } else {
+        toast.error("Failed to assign operator. Please try again.")
+      }
     }
   }
 
   const handleRemoveOperator = async (profileId, userId) => {
     try {
+      toast.loading("Removing operator...")
+
       const response = await api.delete(`/profiles/${profileId}/operators/${userId}`)
+
+      toast.dismiss()
       toast.success("Operator removed successfully")
 
-      // Update profiles list
+      // Update profiles list with the updated profile
       setProfiles(profiles.map((profile) => (profile._id === profileId ? response.data.profile : profile)))
+
+      // If we're in the assign modal, update the selected profile
+      if (selectedProfile && selectedProfile._id === profileId) {
+        setSelectedProfile(response.data.profile)
+      }
     } catch (error) {
+      toast.dismiss()
       console.error("Error removing operator:", error)
-      toast.error(error.response?.data?.message || "Failed to remove operator")
+
+      if (error.response?.status === 403) {
+        toast.error("You don't have permission to remove operators")
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message)
+      } else {
+        toast.error("Failed to remove operator. Please try again.")
+      }
     }
   }
 
@@ -225,7 +291,9 @@ const Profiles = () => {
   }
 
   return (
+  
     <div>
+    
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Profiles</h1>
 
@@ -266,6 +334,11 @@ const Profiles = () => {
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-800">{profile.name}</h2>
+                <div className="flex items-center">
+                  <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    {profile.operators?.length || 0} operators
+                  </span>
+                </div>
               </div>
               <p className="text-sm text-gray-500 mt-1">{profile.description || "No description"}</p>
             </div>
@@ -274,16 +347,33 @@ const Profiles = () => {
               <div className="grid grid-cols-1 gap-3">
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase">Device Group</p>
-                  <p className="text-sm font-medium">
-                    {typeof profile.deviceGroup === "object" ? profile.deviceGroup.name : "Loading..."}
-                  </p>
+                  <div className="flex items-center mt-1">
+                    <Layers size={16} className="text-gray-400 mr-1" />
+                    <p className="text-sm font-medium">
+                      {typeof profile.deviceGroup === "object" ? profile.deviceGroup.name : "Loading..."}
+                    </p>
+                  </div>
+                  {typeof profile.deviceGroup === "object" && profile.deviceGroup.devices && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {profile.deviceGroup.devices.length} device{profile.deviceGroup.devices.length !== 1 ? "s" : ""}
+                    </p>
+                  )}
                 </div>
 
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase">Command List</p>
-                  <p className="text-sm font-medium">
-                    {typeof profile.commandList === "object" ? profile.commandList.name : "Loading..."}
-                  </p>
+                  <div className="flex items-center mt-1">
+                    <Terminal size={16} className="text-gray-400 mr-1" />
+                    <p className="text-sm font-medium">
+                      {typeof profile.commandList === "object" ? profile.commandList.name : "Loading..."}
+                    </p>
+                  </div>
+                  {typeof profile.commandList === "object" && profile.commandList.commands && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {profile.commandList.commands.length} command
+                      {profile.commandList.commands.length !== 1 ? "s" : ""}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -292,8 +382,9 @@ const Profiles = () => {
                     {["admin", "team_lead"].includes(user.role) && (
                       <button
                         onClick={() => openAssignModal(profile)}
-                        className="text-xs text-blue-600 hover:text-blue-800"
+                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
                       >
+                        <UserPlus size={14} className="mr-1" />
                         Assign
                       </button>
                     )}
@@ -311,6 +402,7 @@ const Profiles = () => {
                               <button
                                 onClick={() => handleRemoveOperator(profile._id, typeof op === "object" ? op._id : op)}
                                 className="ml-1 text-blue-600 hover:text-blue-800"
+                                title="Remove operator"
                               >
                                 &times;
                               </button>
@@ -319,7 +411,10 @@ const Profiles = () => {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-500 italic">No operators assigned</p>
+                      <div className="flex items-center text-sm text-gray-500 italic">
+                        <UserX size={14} className="mr-1 text-gray-400" />
+                        No operators assigned
+                      </div>
                     )}
                   </div>
                 </div>
@@ -378,7 +473,14 @@ const Profiles = () => {
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Add New Profile</h3>
+                    <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Create New Operational Profile</h3>
+
+                    <div className="mb-4 p-3 bg-blue-50 rounded-md text-sm text-blue-800">
+                      <p>
+                        A profile combines a device group with a command list, allowing operators to control specific
+                        devices with predefined commands.
+                      </p>
+                    </div>
 
                     <form onSubmit={handleAddProfile}>
                       <div className="grid grid-cols-1 gap-4">
@@ -394,6 +496,7 @@ const Profiles = () => {
                             onChange={handleInputChange}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                             required
+                            placeholder="Enter a descriptive name for this profile"
                           />
                         </div>
 
@@ -406,57 +509,73 @@ const Profiles = () => {
                             name="description"
                             value={formData.description}
                             onChange={handleInputChange}
-                            rows="3"
+                            rows="2"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Describe the purpose of this profile"
                           ></textarea>
                         </div>
 
-                        <div>
-                          <label htmlFor="deviceGroupId" className="block text-sm font-medium text-gray-700 mb-1">
-                            Device Group *
-                          </label>
-                          <select
-                            id="deviceGroupId"
-                            name="deviceGroupId"
-                            value={formData.deviceGroupId}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            required
-                          >
-                            <option value="">Select a device group</option>
-                            {deviceGroups.map((group) => (
-                              <option key={group._id} value={group._id}>
-                                {group.name}
-                              </option>
-                            ))}
-                          </select>
+                        <div className="border-t pt-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-3">Profile Components</h4>
+
+                          <div>
+                            <label htmlFor="deviceGroupId" className="block text-sm font-medium text-gray-700 mb-1">
+                              1. Select Device Group *
+                            </label>
+                            <select
+                              id="deviceGroupId"
+                              name="deviceGroupId"
+                              value={formData.deviceGroupId}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              required
+                            >
+                              <option value="">-- Select a device group --</option>
+                              {deviceGroups.map((group) => (
+                                <option key={group._id} value={group._id}>
+                                  {group.name} ({group.devices?.length || 0} devices)
+                                </option>
+                              ))}
+                            </select>
+                            {deviceGroups.length === 0 && (
+                              <p className="mt-1 text-xs text-red-500">
+                                No device groups available. Please create a device group first.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="mt-3">
+                            <label htmlFor="commandListId" className="block text-sm font-medium text-gray-700 mb-1">
+                              2. Select Command List *
+                            </label>
+                            <select
+                              id="commandListId"
+                              name="commandListId"
+                              value={formData.commandListId}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              required
+                            >
+                              <option value="">-- Select a command list --</option>
+                              {commandLists.map((list) => (
+                                <option key={list._id} value={list._id}>
+                                  {list.name} ({list.commands?.length || 0} commands)
+                                </option>
+                              ))}
+                            </select>
+                            {commandLists.length === 0 && (
+                              <p className="mt-1 text-xs text-red-500">
+                                No command lists available. Please create a command list first.
+                              </p>
+                            )}
+                          </div>
                         </div>
 
-                        <div>
-                          <label htmlFor="commandListId" className="block text-sm font-medium text-gray-700 mb-1">
-                            Command List *
-                          </label>
-                          <select
-                            id="commandListId"
-                            name="commandListId"
-                            value={formData.commandListId}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            required
-                          >
-                            <option value="">Select a command list</option>
-                            {commandLists.map((list) => (
-                              <option key={list._id} value={list._id}>
-                                {list.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label htmlFor="operators" className="block text-sm font-medium text-gray-700 mb-1">
-                            Assign Operators
-                          </label>
+                        <div className="border-t pt-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-medium text-gray-700">3. Assign Operators (Optional)</h4>
+                            <span className="text-xs text-gray-500">You can also assign operators later</span>
+                          </div>
                           <select
                             id="operators"
                             name="operators"
@@ -464,7 +583,7 @@ const Profiles = () => {
                             value={formData.operators}
                             onChange={handleOperatorSelection}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            size="5"
+                            size="4"
                           >
                             {operators.map((op) => (
                               <option key={op._id} value={op._id}>
@@ -472,7 +591,15 @@ const Profiles = () => {
                               </option>
                             ))}
                           </select>
-                          <p className="text-xs text-gray-500 mt-1">Hold Ctrl (or Cmd) to select multiple operators</p>
+                          {operators.length === 0 ? (
+                            <p className="mt-1 text-xs text-gray-500">
+                              No operators available. Create operator users in the Users section.
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-xs text-gray-500">
+                              Hold Ctrl (or Cmd) to select multiple operators
+                            </p>
+                          )}
                         </div>
                       </div>
                     </form>
@@ -485,6 +612,7 @@ const Profiles = () => {
                   type="button"
                   onClick={handleAddProfile}
                   className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  disabled={!formData.name || !formData.deviceGroupId || !formData.commandListId}
                 >
                   Create Profile
                 </button>
@@ -626,14 +754,63 @@ const Profiles = () => {
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                      Assign Operators to {selectedProfile?.name}
-                    </h3>
+                    <h3 className="text-lg leading-6 font-medium text-gray-900 mb-2">Assign Operators to Profile</h3>
 
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500 mb-4">Select an operator to assign to this profile:</p>
+                    <div className="bg-gray-50 p-3 rounded-md mb-4">
+                      <h4 className="font-medium text-gray-800">{selectedProfile?.name}</h4>
+                      <p className="text-sm text-gray-500">{selectedProfile?.description || "No description"}</p>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-gray-500">Device Group:</span>
+                          <p className="font-medium">
+                            {typeof selectedProfile?.deviceGroup === "object"
+                              ? selectedProfile?.deviceGroup.name
+                              : "Loading..."}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Command List:</span>
+                          <p className="font-medium">
+                            {typeof selectedProfile?.commandList === "object"
+                              ? selectedProfile?.commandList.name
+                              : "Loading..."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-                      <div className="max-h-60 overflow-y-auto">
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Currently Assigned Operators:</h4>
+                      <div className="bg-gray-50 p-3 rounded-md">
+                        {selectedProfile?.operators && selectedProfile.operators.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {selectedProfile.operators.map((op) => (
+                              <div
+                                key={typeof op === "object" ? op._id : op}
+                                className="inline-flex items-center bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
+                              >
+                                {typeof op === "object" ? op.username : "Loading..."}
+                                <button
+                                  onClick={() =>
+                                    handleRemoveOperator(selectedProfile._id, typeof op === "object" ? op._id : op)
+                                  }
+                                  className="ml-1 text-blue-600 hover:text-blue-800"
+                                  title="Remove operator"
+                                >
+                                  &times;
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500 italic">No operators currently assigned</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Available Operators:</h4>
+                      <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md">
                         <ul className="divide-y divide-gray-200">
                           {operators
                             .filter(
@@ -644,18 +821,18 @@ const Profiles = () => {
                                 ),
                             )
                             .map((op) => (
-                              <li key={op._id} className="py-2">
+                              <li key={op._id} className="p-3 hover:bg-gray-50">
                                 <div className="flex items-center justify-between">
                                   <div>
                                     <p className="text-sm font-medium text-gray-800">{op.username}</p>
                                     <p className="text-xs text-gray-500">
-                                      {op.firstName} {op.lastName} ({op.email})
+                                      {op.firstName} {op.lastName} • {op.email}
                                     </p>
                                   </div>
                                   <button
                                     type="button"
                                     onClick={() => handleAssignOperator(op._id)}
-                                    className="ml-2 px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700"
+                                    className="ml-2 px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 transition-colors"
                                   >
                                     Assign
                                   </button>
@@ -685,7 +862,7 @@ const Profiles = () => {
                   onClick={() => setShowAssignModal(false)}
                   className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:w-auto sm:text-sm"
                 >
-                  Close
+                  Done
                 </button>
               </div>
             </div>

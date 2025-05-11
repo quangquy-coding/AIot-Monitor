@@ -138,11 +138,11 @@ const Login = () => {
         </div>
       </div>
 
-      <div className="mt-6 text-center text-sm text-gray-600">
+      {/* <div className="mt-6 text-center text-sm text-gray-600">
         <p>Default admin credentials:</p>
         <p>Username: admin</p>
         <p>Password: admin123</p>
-      </div>
+      </div> */}
     </div>
   )
 }

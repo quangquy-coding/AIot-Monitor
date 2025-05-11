@@ -1,15 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import api from "../utils/api"
 import toast from "react-hot-toast"
-import { User, Key, Save } from "lucide-react"
+import { User, Key, Save, BookOpen } from "lucide-react"
 
 const Profile = () => {
   const { user, updatePassword } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [showPasswordForm, setShowPasswordForm] = useState(false)
+
+  // Add this state at the top of the component with other state variables
+  const [assignedProfiles, setAssignedProfiles] = useState([])
+  const [loadingProfiles, setLoadingProfiles] = useState(false)
 
   // Profile form state
   const [formData, setFormData] = useState({
@@ -96,6 +100,26 @@ const Profile = () => {
       toast.error("Failed to update password")
     }
   }
+
+  // Add this useEffect to fetch assigned profiles
+  useEffect(() => {
+    const fetchAssignedProfiles = async () => {
+      if (user && user.role === "operator") {
+        try {
+          setLoadingProfiles(true)
+          const response = await api.get(`/profiles/operator/${user.id}`)
+          setAssignedProfiles(response.data)
+        } catch (error) {
+          console.error("Error fetching assigned profiles:", error)
+          toast.error("Failed to fetch assigned profiles")
+        } finally {
+          setLoadingProfiles(false)
+        }
+      }
+    }
+
+    fetchAssignedProfiles()
+  }, [user])
 
   return (
     <div className="space-y-6">
@@ -303,6 +327,64 @@ const Profile = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {user?.role === "operator" && (
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden mt-6">
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">My Assigned Profiles</h2>
+
+            {loadingProfiles ? (
+              <div className="flex justify-center py-4">
+                <div className="w-8 h-8 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+              </div>
+            ) : assignedProfiles.length > 0 ? (
+              <div className="space-y-4">
+                {assignedProfiles.map((profile) => (
+                  <div key={profile._id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium text-gray-800">{profile.name}</h3>
+                        <p className="text-sm text-gray-500">{profile.description || "No description"}</p>
+                      </div>
+                      <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                        Active
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-gray-500">Device Group:</p>
+                        <p className="font-medium">
+                          {typeof profile.deviceGroup === "object" ? profile.deviceGroup.name : "Loading..."}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Command List:</p>
+                        <p className="font-medium">
+                          {typeof profile.commandList === "object" ? profile.commandList.name : "Loading..."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex justify-end">
+                      <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">View Details</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-gray-50 rounded-lg p-6 text-center">
+                <BookOpen size={40} className="mx-auto text-gray-400 mb-2" />
+                <h3 className="text-gray-800 font-medium mb-1">No Profiles Assigned</h3>
+                <p className="text-gray-500 text-sm">
+                  You don't have any operational profiles assigned to you yet. Contact your team lead or administrator
+                  to get access.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

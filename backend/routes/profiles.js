@@ -346,11 +346,36 @@ router.get("/operator/:userId", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "User not found" })
     }
 
+    // Check if the requesting user is the operator or has admin/team_lead/supervisor role
+    if (req.user.id !== req.params.userId && !["admin", "team_lead", "supervisor"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Not authorized to view other users' profiles" })
+    }
+
     // Get profiles for operator
     const profiles = await Profile.find({ operators: req.params.userId })
       .populate("deviceGroup", "name devices")
+      .populate({
+        path: "deviceGroup",
+        populate: {
+          path: "devices",
+          select: "name type status",
+        },
+      })
       .populate("commandList", "name commands")
       .populate("createdBy", "username")
+
+    // Log activity
+    await ActivityLog.create({
+      user: req.user.id,
+      action: "view_operator_profiles",
+      target: "profile",
+      details: {
+        operatorId: req.params.userId,
+        profileCount: profiles.length,
+      },
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    })
 
     res.json(profiles)
   } catch (error) {
