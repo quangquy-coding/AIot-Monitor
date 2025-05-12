@@ -1,61 +1,63 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose"
 
-const deviceSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  type: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  model: {
-    type: String,
-    trim: true
-  },
-  serialNumber: {
-    type: String,
-    trim: true
-  },
-  hub: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Hub',
-    required: true
-  },
-  status: {
-    type: String,
-    enum: ['online', 'offline', 'maintenance', 'error'],
-    default: 'offline'
-  },
-  lastPing: {
-    type: Date
-  },
-  readings: [{
-    timestamp: {
-      type: Date,
-      default: Date.now
+const deviceSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
     },
-    type: String,
-    value: mongoose.Schema.Types.Mixed
-  }],
-  firmware: {
-    version: String,
-    lastUpdated: Date
+    type: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    ipAddress: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    sshPort: {
+      type: Number,
+      default: 22,
+    },
+    sshUsername: {
+      type: String,
+      trim: true,
+    },
+    sshPassword: {
+      type: String,
+      trim: true,
+    },
+    status: {
+      type: String,
+      enum: ["online", "offline", "maintenance", "error"],
+      default: "offline",
+    },
+    lastPing: {
+      type: Date,
+    },
+    // Docker specific fields
+    isDocker: {
+      type: Boolean,
+      default: false,
+    },
+    dockerId: {
+      type: String,
+      trim: true,
+    },
+    dockerStats: {
+      cpuUsage: String,
+      memoryUsage: String,
+      networkIO: String,
+      lastUpdated: Date,
+    },
   },
-  ipAddress: {
-    type: String,
-    trim: true
+  {
+    timestamps: true,
   },
-  macAddress: {
-    type: String,
-    trim: true
-  }
-}, {
-  timestamps: true
-});
+)
 
-const Device = mongoose.model('Device', deviceSchema);
+const Device = mongoose.model("Device", deviceSchema)
 
-export default Device;
+export default Device

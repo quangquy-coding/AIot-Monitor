@@ -1,0 +1,154 @@
+version: '3.8'
+
+services:
+  # --- MongoDB Database ---
+  mongodb:
+    image: mongo:6.0
+    container_name: aiot-mongodb
+    hostname: mongodb.aiot.local
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=adminpassword
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - aiot_network
+    restart: unless-stopped
+
+  # --- Backend API ---
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aiot-backend
+    hostname: backend.aiot.local
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=mongodb://admin:adminpassword@mongodb:27017/aiotmonitor?authSource=admin
+      - JWT_SECRET=your_jwt_secret_key_here
+      - FRONTEND_URL=http://localhost:5173
+    ports:
+      - '5000:5000'
+    depends_on:
+      - mongodb
+    networks:
+      - aiot_network
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # --- Frontend ---
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: aiot-frontend
+    hostname: frontend.aiot.local
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    ports:
+      - '5173:80'
+    depends_on:
+      - backend
+    networks:
+      - aiot_network
+    restart: unless-stopped
+
+  # --- Simulated Devices ---
+  
+  # Device 1: Core-Router-01
+  core-router-01:
+    build:
+      context: ./docker/ubuntu-ssh-device
+      dockerfile: Dockerfile
+    container_name: aiot-core-router-01
+    hostname: core-router-01.aiot.local
+    environment:
+      - SSH_USER=admin
+      - SSH_PASSWORD=secure_router_pwd123
+    ports:
+      - '2201:22'
+    networks:
+      aiot_network:
+        ipv4_address: 10.0.1.1
+    restart: unless-stopped
+
+  # Device 2: My Docker Device 1
+  my-docker-device-1:
+    build:
+      context: ./docker/ubuntu-ssh-device
+      dockerfile: Dockerfile
+    container_name: aiot-my-docker-device-1
+    hostname: mydockdev1.aiot.local
+    environment:
+      - SSH_USER=operator
+      - SSH_PASSWORD=operator_password
+    ports:
+      - '2221:22'
+    networks:
+      - aiot_network
+    restart: unless-stopped
+
+  # Device 3: Dist-Switch-01
+  dist-switch-01:
+    build:
+      context: ./docker/ubuntu-ssh-device
+      dockerfile: Dockerfile
+    container_name: aiot-dist-switch-01
+    hostname: dist-switch-01.aiot.local
+    environment:
+      - SSH_USER=netadmin
+      - SSH_PASSWORD=sw1tch_adm1n_pwd
+    ports:
+      - '2202:22'
+    networks:
+      aiot_network:
+        ipv4_address: 10.0.1.2
+    restart: unless-stopped
+
+  # Device 4: WebServer-Prod-01
+  webserver-prod-01:
+    build:
+      context: ./docker/ubuntu-ssh-device
+      dockerfile: Dockerfile
+    container_name: aiot-webserver-prod-01
+    hostname: webserver01.aiot.local
+    environment:
+      - SSH_USER=webadmin
+      - SSH_PASSWORD=WebServer#123
+    ports:
+      - '2203:22'
+    networks:
+      aiot_network:
+        ipv4_address: 10.0.2.10
+    restart: unless-stopped
+
+  # Device 5: DB-Server-Prod-01
+  db-server-prod-01:
+    build:
+      context: ./docker/ubuntu-ssh-device
+      dockerfile: Dockerfile
+    container_name: aiot-db-server-prod-01
+    hostname: dbserver01.aiot.local
+    environment:
+      - SSH_USER=dbadmin
+      - SSH_PASSWORD=DBServer@456
+    ports:
+      - '2204:22'
+    networks:
+      aiot_network:
+        ipv4_address: 10.0.2.20
+    restart: unless-stopped
+
+networks:
+  aiot_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.0.0.0/16
+
+volumes:
+  mongodb_data:

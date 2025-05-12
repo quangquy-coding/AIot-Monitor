@@ -12,7 +12,6 @@ import AuthLayout from "./layouts/AuthLayout"
 // Pages
 import Login from "./pages/Login"
 import Dashboard from "./pages/Dashboard"
-import Hubs from "./pages/Hubs"
 import Devices from "./pages/Devices"
 import Users from "./pages/Users"
 import Profile from "./pages/Profile"
@@ -65,7 +64,6 @@ function App() {
           }
         >
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="hubs" element={<Hubs />} />
           <Route path="devices" element={<Devices />} />
           <Route path="profile" element={<Profile />} />
           <Route

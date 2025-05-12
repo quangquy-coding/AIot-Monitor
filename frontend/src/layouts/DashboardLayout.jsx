@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { Outlet, NavLink, useNavigate } from "react-router-dom"
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
-import { Home, HardDrive, Users, User, LogOut, Menu, X, Layers, Terminal, BookOpen, Cpu } from "lucide-react"
+import { LayoutDashboard, Cpu, Users, LogOut, User, Menu, X, Layers, Terminal, FileText } from "lucide-react"
 
 const DashboardLayout = () => {
   const { user, logout } = useAuth()
@@ -23,88 +23,103 @@ const DashboardLayout = () => {
     setSidebarOpen(false)
   }
 
-  const navItems = [
-    { to: "/dashboard", icon: <Home size={20} />, label: "Dashboard" },
-    { to: "/hubs", icon: <HardDrive size={20} />, label: "Hubs" },
-    { to: "/devices", icon: <Cpu size={20} />, label: "Devices" },
+  const menuItems = [
     {
-      to: "/device-groups",
+      path: "/dashboard",
+      name: "Dashboard",
+      icon: <LayoutDashboard size={20} />,
+      roles: ["admin", "team_lead", "supervisor", "operator"],
+    },
+    {
+      path: "/devices",
+      name: "Devices",
+      icon: <Cpu size={20} />,
+      roles: ["admin", "team_lead", "supervisor", "operator"],
+    },
+    {
+      path: "/device-groups",
+      name: "Device Groups",
       icon: <Layers size={20} />,
-      label: "Device Groups",
       roles: ["admin", "team_lead", "supervisor"],
     },
     {
-      to: "/command-lists",
+      path: "/command-lists",
+      name: "Command Lists",
       icon: <Terminal size={20} />,
-      label: "Command Lists",
       roles: ["admin", "team_lead", "supervisor"],
     },
     {
-      to: "/profiles",
-      icon: <BookOpen size={20} />,
-      label: "Profiles",
+      path: "/profiles",
+      name: "Profiles",
+      icon: <FileText size={20} />,
       roles: ["admin", "team_lead", "supervisor"],
     },
     {
-      to: "/users",
+      path: "/users",
+      name: "Users",
       icon: <Users size={20} />,
-      label: "Users",
       roles: ["admin", "team_lead"],
     },
-    { to: "/profile", icon: <User size={20} />, label: "My Profile" },
+    {
+      path: "/profile",
+      name: "My Profile",
+      icon: <User size={20} />,
+      roles: ["admin", "team_lead", "supervisor", "operator"],
+    },
   ]
 
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Mobile sidebar backdrop */}
-      {sidebarOpen && <div className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden" onClick={closeSidebar} />}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-10 bg-black bg-opacity-50 lg:hidden" onClick={closeSidebar}></div>
+      )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-gray-800 text-white transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-20 w-64 transform bg-gray-900 text-white transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <h1 className="text-xl font-bold">AIoT Monitor</h1>
-          <button className="p-1 rounded-md lg:hidden hover:bg-gray-700" onClick={closeSidebar}>
+        <div className="flex h-16 items-center justify-between px-4 lg:h-20">
+          <Link to="/dashboard" className="flex items-center">
+            <h1 className="text-xl font-bold">AIoT Monitor</h1>
+          </Link>
+          <button onClick={toggleSidebar} className="rounded-md p-1 text-white hover:bg-gray-800 lg:hidden">
             <X size={24} />
           </button>
         </div>
 
-        <nav className="mt-6">
-          <ul className="space-y-2 px-4">
-            {navItems.map((item, index) => {
-              // Skip if role-restricted and user doesn't have permission
-              if (item.roles && !item.roles.includes(user.role)) {
-                return null
-              }
-
-              return (
-                <li key={index}>
+        <nav className="mt-4 px-2">
+          <ul className="space-y-1">
+            {menuItems
+              .filter((item) => item.roles.includes(user.role))
+              .map((item) => (
+                <li key={item.path}>
                   <NavLink
-                    to={item.to}
+                    to={item.path}
+                    onClick={closeSidebar}
                     className={({ isActive }) =>
-                      `flex items-center px-4 py-3 rounded-md transition-colors ${
-                        isActive ? "bg-gray-700 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                      `flex items-center rounded-md px-4 py-3 text-sm font-medium transition-colors ${
+                        isActive ? "bg-blue-700 text-white" : "text-gray-300 hover:bg-gray-800 hover:text-white"
                       }`
                     }
-                    onClick={closeSidebar}
                   >
-                    {item.icon}
-                    <span className="ml-3">{item.label}</span>
+                    <span className="mr-3">{item.icon}</span>
+                    {item.name}
                   </NavLink>
                 </li>
-              )
-            })}
+              ))}
 
-            <li className="mt-6">
+            <li>
               <button
                 onClick={handleLogout}
-                className="flex items-center w-full px-4 py-3 text-gray-300 rounded-md hover:bg-gray-700 hover:text-white transition-colors"
+                className="flex w-full items-center rounded-md px-4 py-3 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
               >
-                <LogOut size={20} />
-                <span className="ml-3">Logout</span>
+                <span className="mr-3">
+                  <LogOut size={20} />
+                </span>
+                Logout
               </button>
             </li>
           </ul>
@@ -112,33 +127,31 @@ const DashboardLayout = () => {
       </aside>
 
       {/* Main content */}
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top navbar */}
-        <header className="bg-white shadow-sm z-10">
-          <div className="flex items-center justify-between p-4">
-            <button className="p-1 rounded-md lg:hidden hover:bg-gray-100" onClick={toggleSidebar}>
-              <Menu size={24} />
-            </button>
+        <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:h-20">
+          <button
+            onClick={toggleSidebar}
+            className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 lg:hidden"
+          >
+            <Menu size={24} />
+          </button>
 
-            <div className="flex items-center">
-              <div className="mr-2 text-right">
-                <p className="text-sm font-medium">
-                  {user?.firstName} {user?.lastName}
-                </p>
-                <p className="text-xs text-gray-500 capitalize">{user?.role.replace("_", " ")}</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                <span className="text-gray-600 font-medium">
-                  {user?.firstName?.[0]}
-                  {user?.lastName?.[0]}
-                </span>
-              </div>
+          <div className="flex items-center">
+            <div className="mr-2 h-8 w-8 rounded-full bg-blue-500 text-center text-white">
+              <span className="leading-8">{user.firstName?.charAt(0) || user.username?.charAt(0) || "U"}</span>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-900">
+                {user.firstName ? `${user.firstName} ${user.lastName}` : user.username}
+              </p>
+              <p className="text-xs text-gray-500 capitalize">{user.role}</p>
             </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4">
+        <main className="flex-1 overflow-auto p-4 lg:p-6">
           <Outlet />
         </main>
       </div>
