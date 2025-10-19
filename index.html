@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang cá nhân</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background: #f0f2f5;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+        }
+
+        /* Cover Photo */
+        .cover-photo {
+            height: 350px;
+            background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e') no-repeat center;
+            background-size: cover;
+            position: relative;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .profile-pic {
+            position: absolute;
+            bottom: -80px;
+            left: 20px;
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            border: 4px solid #fff;
+            background: url('https://images.unsplash.com/photo-1535713875002-d1d0cf3356de') no-repeat center;
+            background-size: cover;
+        }
+
+        /* Profile Info */
+        .profile-info {
+            padding: 20px;
+            margin-top: 80px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .profile-info h1 {
+            font-size: 32px;
+            color: #1c1e21;
+        }
+
+        .profile-info p {
+            color: #606770;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .profile-tabs {
+            display: flex;
+            gap: 20px;
+            padding: 10px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .profile-tabs a {
+            text-decoration: none;
+            color: #65676b;
+            font-weight: 600;
+            padding: 10px 0;
+            border-bottom: 2px solid transparent;
+        }
+
+        .profile-tabs a:hover,
+        .profile-tabs a.active {
+            color: #1877f2;
+            border-bottom: 2px solid #1877f2;
+        }
+
+        /* Content Area */
+        .content {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .sidebar {
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .main-content {
+            flex: 2;
+        }
+
+        .bio-box, .post-box {
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .bio-box h3, .post-box h3 {
+            font-size: 16px;
+            color: #1c1e21;
+            margin-bottom: 10px;
+        }
+
+        .post-box .post-content {
+            margin-bottom: 10px;
+            color: #1c1e21;
+        }
+
+        .post-box .post-meta {
+            color: #65676b;
+            font-size: 14px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                max-width: 100%;
+            }
+
+            .cover-photo {
+                height: 200px;
+            }
+
+            .profile-pic {
+                width: 120px;
+                height: 120px;
+                bottom: -60px;
+            }
+
+            .profile-info {
+                margin-top: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Cover Photo and Profile Picture -->
+        <div class="cover-photo">
+            <div class="profile-pic"></div>
+        </div>
+
+        <!-- Profile Info -->
+        <div class="profile-info">
+            <h1>Nguyễn Văn A</h1>
+            <p>500 bạn bè • 100 người theo dõi</p>
+        </div>
+
+        <!-- Profile Tabs -->
+        <div class="profile-tabs">
+            <a href="#" class="active">Dòng thời gian</a>
+            <a href="#">Giới thiệu</a>
+            <a href="#">Bạn bè</a>
+            <a href="#">Ảnh</a>
+            <a href="#">Video</a>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="bio-box">
+                    <h3>Giới thiệu</h3>
+                    <p><strong>Công việc:</strong> Lập trình viên tại xAI</p>
+                    <p><strong>Học vấn:</strong> Đại học Công nghệ</p>
+                    <p><strong>Sống tại:</strong> Hà Nội, Việt Nam</p>
+                    <p><strong>Ngày sinh:</strong> 01/01/1995</p>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <div class="post-box">
+                    <h3>Nguyễn Văn A đã đăng</h3>
+                    <div class="post-content">
+                        Chào mọi người! Hôm nay là một ngày tuyệt vời để học một điều gì đó mới. Bạn đang làm gì hôm nay? 😊
+                    </div>
+                    <div class="post-meta">2 giờ trước</div>
+                </div>
+                <div class="post-box">
+                    <h3>Nguyễn Văn A đã chia sẻ một ảnh</h3>
+                    <div class="post-content">
+                        <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c" alt="Post image" style="width: 100%; border-radius: 8px;">
+                    </div>
+                    <div class="post-meta">1 ngày trước</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
